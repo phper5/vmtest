@@ -78,7 +78,7 @@ class MotifDS(Dataset):
                                        rotate=self.__rotate, gray=self.__rgb == 'gray' and not self.__is_text)
                 if motif is not False:
                     vm_indices, vm_rows, vm_cols = get_image_indices(motif)
-                    motif[vm_indices[0], vm_indices[1], :3] = 255
+                    # motif[vm_indices[0], vm_indices[1], :3] = 255
                     if vm_cols < self.__size:
                         offset_rows = random.randint(0, self.__size - vm_rows - 1)
                     else:
