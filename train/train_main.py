@@ -1,13 +1,16 @@
 from utils.train_utils import *
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
 # paths
 root_path = '..'
-train_tag = 'demo_emojis'
+train_tag = 'text_color'
 
 
 # datasets paths
 cache_root = ['data folder a', 'data folder b', '...']
+cache_root = ['/run/media/white/F6D8A1C6D8A18589/test/color_text/']
 
 # dataset configurations
 patch_size = 128
@@ -21,13 +24,15 @@ num_blocks = (3, 3, 3, 3, 3)
 shared_depth = 2
 use_vm_decoder = True
 
+log_dir = os.path.join(root_path, 'logs')
+log = SummaryWriter(log_dir=log_dir)
 
 # train configurations
 gamma1 = 2   # L1 image
 gamma2 = 1   # L1 visual motif
 epochs = 200
-batch_size = 32
-print_frequency = 100
+batch_size = 8
+print_frequency = 10
 save_frequency = 10
 device = torch.device('cuda:0')
 
@@ -44,6 +49,7 @@ def train(net, train_loader, test_loader):
     net.set_optimizers()
     losses = []
     print('Training Begins')
+    total_step = len(train_loader)
     for epoch in range(epochs):
         real_epoch = epoch + 1
         for i, data in enumerate(train_loader, 0):
@@ -73,16 +79,44 @@ def train(net, train_loader, test_loader):
             if (i + 1) % print_frequency == 0:
                 print('%s [%d, %3d] , baseline loss: %.2f' % (train_tag, real_epoch, batch_size * (i + 1), sum(losses) / len(losses)))
                 losses = []
+                log.add_scalar('loss', loss.item(), i + epoch * total_step + 1)
+                info = {'synthesized':
+                            transform_to_numpy_image(synthesized[:1]),
+                        'images_real':
+                            transform_to_numpy_image(images[:1]),
+                        'images_guess':
+                            transform_to_numpy_image(guess_images[:1]),
+                        'image_reconstructed':
+                            transform_to_numpy_image(reconstructed_pixels[:1]),
+                        'vm_real':
+                            transform_to_numpy_image(real_vm),
+                        'vm_guess':
+                            transform_to_numpy_image(guess_vm),
+                        'mask_guess':
+                            transform_to_numpy_image(guess_mask),
+                        'reconstructed_motifs':
+                            transform_to_numpy_image(reconstructed_motifs),
+                        }
+                for tag, imgs in info.items():
+                    log.add_images(tag, imgs, i + epoch * total_step + 1, dataformats='NHWC')
         # savings
         if real_epoch % save_frequency == 0:
             print("checkpointing...")
-            image_name = '%s/%s_%d.png' % (images_path, train_tag, real_epoch)
-            _ = save_test_images(net, test_loader, image_name, device)
+            # image_name = '%s/%s_%d.png' % (images_path, train_tag, real_epoch)
+            # _ = save_test_images(net, test_loader, image_name, device)
             torch.save(net.state_dict(), '%s/net_baseline.pth' % nets_path)
             torch.save(net.state_dict(), '%s/net_baseline_%d.pth' % (nets_path, real_epoch))
 
     print('Training Done:)')
-
+def transform_to_numpy_image(tensor_image):
+    image = tensor_image.cpu().detach().numpy()
+    image = np.transpose(image, (0, 2, 3, 1))
+    if image.shape[3] != 3:
+        image = np.repeat(image, 3, axis=3)
+    else:
+        image = (image / 2 + 0.5)
+    images = (image * 255).astype(np.uint8)
+    return image
 
 def run():
     init_folders(nets_path, images_path)
