@@ -19,7 +19,7 @@ def load_globals(nets_path, globals_dict, override=True):
     save_set = {
                 'vm_tag', 'images_root', 'vm_root', 'vm_size', 'image_size', 'patch_size', 'perturbate', 'opacity_var',
                 'use_rgb', 'weight', 'shared_depth', 'num_blocks', 'batch_size', 'use_vm_decoder', 'rotate_vm',
-                'scale_vm', 'crop_vm', 'batch_vm', 'font', 'text_border', 'blur','fontsize'
+                'scale_vm', 'crop_vm', 'batch_vm', 'font', 'text_border', 'blur','fontsize','resize_size'
                 }
     to_save = False
     params_file = '%s/train_params.pkl' % nets_path
@@ -45,7 +45,7 @@ def load_globals(nets_path, globals_dict, override=True):
 
 def init_loaders(opt, cache_root=''):
 
-    train_dataset = CacheLoader(cache_root, train=True, patch_size=opt.patch_size)
+    train_dataset = CacheLoader(cache_root, train=True, patch_size=opt.patch_size,resize_size=opt.resize_size)
     test_dataset = CacheLoader(cache_root, train=False, patch_size=None)
     _train_data_loader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=4)
     if opt.patch_size:

@@ -39,6 +39,7 @@ class MotifDS(Dataset):
     def __getitem__(self, index):
         binary_mask, motifs, opacity_field = self.__generate_motif()
         or_image, sy_image = self.__generate_images(index, motifs, opacity_field)
+        motifs = motifs[:,:,0:3] #恢复原来结构
         if self.__perturbate and random.random() < 0.5:
             sy_image = permute_image(sy_image, binary_mask, multiplier=random.randint(1, 2))
         or_image, sy_image, binary_mask, motifs = self.flip(or_image, sy_image, binary_mask, motifs)

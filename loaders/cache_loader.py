@@ -8,9 +8,10 @@ from PIL import Image
 
 class CacheLoader(Dataset):
 
-    def __init__(self, images_root, train=True, patch_size=None):
+    def __init__(self, images_root, train=True, patch_size=None,resize_size=None):
         super(CacheLoader, self).__init__()
         self.patch_size = patch_size
+        self.resize_size = resize_size
         self.roots = self.init_root(images_root, train)
         self.extension = ['png' for _ in self.roots]
         self.sizes = self.cal_sizes()
@@ -75,9 +76,12 @@ class CacheLoader(Dataset):
             cropped.append(image[:, left_most: left_most + self.patch_size, top_most: top_most + self.patch_size])
         return cropped
 
-    @staticmethod
-    def load_image(path, gray=False):
-        image = np.array(Image.open(path))
+    # @staticmethod
+    def load_image(self,path, gray=False):
+        image = Image.open(path)
+        if self.resize_size:
+            image = image.resize((self.resize_size, self.resize_size), Image.BICUBIC)
+        image = np.array(image)
         if gray:
             image = (image / 255).astype(np.float32)
             if len(image.shape) == 3:
