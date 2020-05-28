@@ -66,7 +66,14 @@ def distort_vm(image, max_size, scale=False, crop=False, rotate=False, gray=Fals
         image = image.convert('LA')
     elif image.mode != 'RGBA':
         image = image.convert('RGBA')
-    if crop:
+    if type(crop) is int:
+        w, h = image.size
+        new_w = crop
+        new_h = crop
+        w_0 = round(random.random() * (w - new_w))
+        h_0 = round(random.random() * (h - new_h))
+        image = image.crop((w_0, h_0, w_0 + new_w, h_0 + new_h))
+    elif crop:
         w, h = image.size
         new_w = round(w // 3 + random.random() * (w - w // 3))
         new_h = round(h // 3 + random.random() * (h - h // 3))
@@ -137,14 +144,14 @@ def get_color_field(color, size):
     return color_field
 
 
-def get_text_motif(text, color=(255, 255, 255, 255), font=FONT, border=0):
+def get_text_motif(text, color=(255, 255, 255, 255), font=FONT, border=0,fontsize=50):
     if border != 0:
         border_size = random.randint(0, border)
         border_color = random.randint(100, 240)
         border_color = (border_color, border_color, border_color, 255)
     else:
         border_size = 0
-    font = ImageFont.truetype(font, 50)
+    font = ImageFont.truetype(font, fontsize)
     text = text.replace(SPACE_REPLACEMENT_STRING, ' ')
     lines = text.split(NEWLINE_REPLACEMENT_STRING)
     img_width, line_height = font.getsize(lines[0])
