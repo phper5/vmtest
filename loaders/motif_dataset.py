@@ -52,7 +52,7 @@ class MotifDS(Dataset):
     def __generate_motif(self):
         opacity_fields = []
         binary_mask = np.zeros([self.__size, self.__size, 1], dtype=np.float32)
-        motif_rgb = np.zeros([self.__size, self.__size, 3], dtype=int)
+        motif_rgb = np.zeros([self.__size, self.__size, 4], dtype=int)
         num_vm = 1 + self.__batch_vm // 2 + math.floor(random.random() * self.__batch_vm // 2)
         for vm_idx in range(num_vm):
             vm_rows, vm_cols, motif, vm_indices = [], None, None, None
@@ -92,7 +92,10 @@ class MotifDS(Dataset):
                 else:
                     vm_rows = 0
 
-            motif_rgb[vm_rows, vm_cols, :] = motif[vm_indices[0], vm_indices[1], :-1]
+            # motif_rgb[vm_rows, vm_cols, :] = motif[vm_indices[0], vm_indices[1], :-1]#完全忽略透明度，应该乘以透明度？
+            # compress_motif = (motif[:,:,0:3]*(np.expand_dims(motif[:,:,3], axis=2)/255)).astype(np.uint8);
+            # motif_rgb[vm_rows, vm_cols, :] = compress_motif[vm_indices[0], vm_indices[1], :]
+            motif_rgb[vm_rows, vm_cols, :] = motif[vm_indices[0], vm_indices[1], :]
             field = np.zeros([self.__size, self.__size, 1], dtype=np.float32)
             field[vm_rows, vm_cols, 0] = 1
             vm_rows, vm_cols, _ = np.nonzero(field)
@@ -103,6 +106,10 @@ class MotifDS(Dataset):
                 field[vm_rows, vm_cols, 0] = blurred[vm_rows, vm_cols]
             binary_mask[vm_rows, vm_cols, 0] = 1
             opacity_fields.append(field)
+            # cv2.imwrite('motif.png',motif)
+            # cv2.imwrite('binary_mask.png',binary_mask)
+            # cv2.imwrite('motif_rgb.png',motif_rgb)
+            # cv2.imwrite('opacity_fields.png',field)
         return binary_mask, motif_rgb, opacity_fields
 
     def __generate_text_motif(self, text):
@@ -127,6 +134,8 @@ class MotifDS(Dataset):
         image_index = self.__indices[index]
         image, _ = self.__ds[image_index]
         image = np.array(crop_image(image, self.__size, rand=True))
+        alpha = self.get_alpha(motif)
+        alpha_exp = np.expand_dims(alpha, axis=2) / 255.
         if len(image.shape) != 3:
             image = np.repeat(np.expand_dims(image, 2), 3, axis=2)
         if motif is None:
@@ -135,8 +144,20 @@ class MotifDS(Dataset):
             sy_image = image
             for op in fields:
                 opacity = np.repeat(op, 3, axis=2)
-                sy_image = (1 - opacity) * sy_image + opacity * motif
+                opacity = opacity*alpha_exp
+                sy_image = (1 - opacity) * sy_image + opacity * motif[:,:,0:3]
         return image, sy_image
+
+    def get_alpha(self,image):
+        """Returns the alpha channel of a given image."""
+        if image.shape[2] > 3:
+            alpha = image[:, :, 3]
+            # alpha = remove_noise(alpha)
+        else:
+            reduced_image = np.sum(np.abs(255 - image), axis=2)
+            alpha = np.where(reduced_image > 100, 255, 0)
+        alpha = alpha.astype(np.uint8)
+        return alpha
 
     def __len__(self):
         return len(self.__indices)
