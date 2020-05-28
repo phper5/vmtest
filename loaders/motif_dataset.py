@@ -14,7 +14,7 @@ class MotifDS(Dataset):
     def __init__(self, images_root, motifs_root, train=True, bound_offset=5, image_size=128,
                  motif_size=(40, 50), rgb=True, weight=(0.4, 0.6), perturbate=False, opacity_var=0.,
                  scale_vm=False, rotate_vm=False, crop_vm=False, batch_vm=0, font='', border=0, split_tag='split',
-                 blur=False):
+                 blur=False,fontsize=50):
         super(MotifDS, self).__init__()
         self.__ds = ImageLoader(images_root)
         self.__size = image_size
@@ -23,6 +23,7 @@ class MotifDS(Dataset):
         self.__train = train
         self.__perturbate = perturbate
         self.__rgb = rgb
+        self.__fontsize = fontsize
         self.__scale_vm, self.__rotate, self.__crop, self.__batch_vm, = scale_vm, rotate_vm, crop_vm, batch_vm
         self.__vms = motif_size
         self.__offset = bound_offset
@@ -111,10 +112,16 @@ class MotifDS(Dataset):
             color = random.randint(180, 255)
             color = (color, color, color, 255)
         elif type(self.__rgb) is tuple:
-            color = list(self.__rgb)
+            #color = list(self.__rgb)
+            color = random.choice(self.__rgb)
         elif self.__rgb:
             color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255)
-        return get_text_motif(text, color, font=font, border=self.border)
+        fontsize = 50
+        if self.__fontsize == 'random':
+            fontsize = random.randint(30, 100)
+        elif type(self.__fontsize) is int:
+            fontsize = self.__fontsize
+        return get_text_motif(text, color, font=font, border=self.border,fontsize=fontsize)
 
     def __generate_images(self, index, motif, fields):
         image_index = self.__indices[index]
