@@ -19,7 +19,7 @@ def load_globals(nets_path, globals_dict, override=True):
     save_set = {
                 'vm_tag', 'images_root', 'vm_root', 'vm_size', 'image_size', 'patch_size', 'perturbate', 'opacity_var',
                 'use_rgb', 'weight', 'shared_depth', 'num_blocks', 'batch_size', 'use_vm_decoder', 'rotate_vm',
-                'scale_vm', 'crop_vm', 'batch_vm', 'font', 'text_border', 'blur'
+                'scale_vm', 'crop_vm', 'batch_vm', 'font', 'text_border', 'blur','fontsize'
                 }
     to_save = False
     params_file = '%s/train_params.pkl' % nets_path
