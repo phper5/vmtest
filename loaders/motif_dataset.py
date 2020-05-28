@@ -80,11 +80,11 @@ class MotifDS(Dataset):
                 if motif is not False:
                     vm_indices, vm_rows, vm_cols = get_image_indices(motif)
                     # motif[vm_indices[0], vm_indices[1], :3] = 255
-                    if vm_cols < self.__size:
+                    if vm_cols < self.__size and self.__size - vm_rows - 1 >0:
                         offset_rows = random.randint(0, self.__size - vm_rows - 1)
                     else:
                         offset_rows = [0]
-                    if vm_rows < self.__size:
+                    if vm_rows < self.__size and self.__size - vm_cols - 1 >0:
                         offset_cols = random.randint(0, self.__size - vm_cols - 1)
                     else:
                         offset_cols = 0
