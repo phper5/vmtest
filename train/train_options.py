@@ -26,3 +26,8 @@ class TrainOptions:
         self.use_vm_decoder = False
         self.text_border = False
         self.blur = False
+        self.resize_size = False
+        self.fontsize = 50
+        self.bounding_style = None  # 'circle'
+        self.bound_offset = None
+        self.bound_weight = 3

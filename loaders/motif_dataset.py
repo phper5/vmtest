@@ -8,13 +8,14 @@ import os
 import pickle
 from PIL import Image
 import random
+import math
 
 
 class MotifDS(Dataset):
     def __init__(self, images_root, motifs_root, train=True, bound_offset=5, image_size=128,
                  motif_size=(40, 50), rgb=True, weight=(0.4, 0.6), perturbate=False, opacity_var=0.,
                  scale_vm=False, rotate_vm=False, crop_vm=False, batch_vm=0, font='', border=0, split_tag='split',
-                 blur=False,fontsize=50):
+                 blur=False,fontsize=50,bounding_style=False,bound_weight=3):
         super(MotifDS, self).__init__()
         self.__ds = ImageLoader(images_root)
         self.__size = image_size
@@ -26,7 +27,9 @@ class MotifDS(Dataset):
         self.__fontsize = fontsize
         self.__scale_vm, self.__rotate, self.__crop, self.__batch_vm, = scale_vm, rotate_vm, crop_vm, batch_vm
         self.__vms = motif_size
-        self.__offset = bound_offset
+        self.__bound_offset = bound_offset
+        self.__bounding_style = bounding_style
+        self.__bound_weight = bound_weight
         self.__indices = self.__get_images_indices(images_root, train, os.path.basename(os.path.normpath(images_root)),
                                                    split_tag)
         self.__vm_paths, self.__is_text = None, None
@@ -50,6 +53,42 @@ class MotifDS(Dataset):
         return (torch.from_numpy(sy_image), torch.from_numpy(or_image), torch.from_numpy(binary_mask),
                 torch.from_numpy(motifs))
 
+    def __generate_bounding(self,motif):
+        # 重构bounding_style
+        if self.__bounding_style:
+            color = self.__generate_text_color()
+            vm_indices, vm_rows, vm_cols = get_image_indices(motif)
+            offset = 10
+            if type (self.__bound_offset) is int:
+                offset = self.__bound_offset
+            elif type (self.__bound_offset) is tuple:
+                offset = int(random.random() * (self.__bound_offset[1] - self.__bound_offset[0]))
+            weight = self.__bound_weight
+            img_width,img_height = motif.size
+            space = math.ceil(weight/2)
+            image = Image.new('RGBA', (img_width + (offset+space*2) * 2, img_height +  (offset+space*2) * 2), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(image)
+            if self.__bounding_style == 'rectangle':
+                p_a = (space, space)
+                p_b = (img_width + (offset + space * 2) * 2 - space, img_height + (offset + space * 2) * 2 - space)
+                # draw.rectangle(p_a + p_b, fill=color,width=weight,outline=True)
+                x0 = space
+                y0 = space
+                y1 = img_height + (offset + space * 2) * 2 - space
+                x1 = img_width + (offset + space * 2) * 2 - space
+                draw.line((x0,y0,x0,y1), fill=color, width=weight) #x_0, y_0, x_1, y_1
+                draw.line((x0, y1, x1, y1), fill=color, width=weight)  # x_0, y_0, x_1, y_1
+                draw.line((x1, y1, x1, y0), fill=color, width=weight)  # x_0, y_0, x_1, y_1
+                draw.line((x1, y0, x0, y0), fill=color, width=weight)  # x_0, y_0, x_1, y_1
+            elif self.__bounding_style == 'circle':
+                pass
+            else:
+                pass #多边形？
+            box = [offset + space * 2,offset + space * 2,offset + space * 2+img_width,offset + space * 2+img_height]
+            image.paste(motif,box)
+            return image
+        return motif
+
     def __generate_motif(self):
         opacity_fields = []
         binary_mask = np.zeros([self.__size, self.__size, 1], dtype=np.float32)
@@ -63,11 +102,12 @@ class MotifDS(Dataset):
                 if self.__vm_paths == 'shapes':
                     if random.random() < .5:
                         motif = generate_shape_motif(self.__rgb)
+                        motif = self.__generate_bounding(motif)
                         motif = distort_vm(motif, vm_size, scale=self.__scale_vm, crop=self.__crop,
                                            rotate=self.__rotate)
                     else:
                         motif = np.array(generate_line_motif(self.__rgb, self.__size))
-
+                        motif = self.__generate_bounding(motif)
                 else:
                     vm_index = random.randint(0, len(self.__vm_paths) - 1)
 
@@ -75,7 +115,7 @@ class MotifDS(Dataset):
                         motif = self.__generate_text_motif(self.__vm_paths[vm_index])
                     else:
                         motif = self.__vm_paths[vm_index]
-
+                    motif = self.__generate_bounding(motif)
                     motif = distort_vm(motif, vm_size, scale=self.__scale_vm, crop=self.__crop,
                                        rotate=self.__rotate, gray=self.__rgb == 'gray' and not self.__is_text)
                 if motif is not False:
@@ -112,6 +152,18 @@ class MotifDS(Dataset):
             # cv2.imwrite('motif_rgb.png',motif_rgb)
             # cv2.imwrite('opacity_fields.png',field)
         return binary_mask, motif_rgb, opacity_fields
+
+    def __generate_text_color(self):
+        color = (255, 255, 255, 255)
+        if self.__rgb == 'gray':
+            color = random.randint(180, 255)
+            color = (color, color, color, 255)
+        elif type(self.__rgb) is tuple:
+            #color = list(self.__rgb)
+            color = random.choice(self.__rgb)
+        elif self.__rgb:
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255)
+        return color
 
     def __generate_text_motif(self, text):
         color = (255, 255, 255, 255)
